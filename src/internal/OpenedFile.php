@@ -39,6 +39,14 @@ class OpenedFile implements FileHandle
     private $content;
     /** @var int */
     private $offset = 0;
+
+    /**
+	 * has the stream reached EOF; this happens on the first read *after* seeking to the end of the file
+	 *
+	 * @var bool
+	 */
+	private $eof=false;
+
     /**
      * mode the file was opened with
      *
@@ -46,7 +54,7 @@ class OpenedFile implements FileHandle
      */
     private $mode;
 
-    public function __construct(vfsFile $file, FileContent $content, int $mode)
+	public function __construct(vfsFile $file, FileContent $content, int $mode)
     {
         $this->file = $file;
         $this->content = $content;
@@ -105,8 +113,14 @@ class OpenedFile implements FileHandle
         }
 
         $this->file->lastAccessed(time());
+
+        if ( $this->offset >= $this->size() ) {
+            $this->eof = true;
+            return '';
+	    }
+
         $data = $this->content->read($this->offset, $count);
-        $this->offset += $count;
+        $this->offset += strlen($data);
 
         return $data;
     }
@@ -169,7 +183,7 @@ class OpenedFile implements FileHandle
      */
     public function eof(): bool
     {
-        return $this->content->size() <= $this->offset;
+        return $this->eof;
     }
 
     /**
@@ -210,6 +224,7 @@ class OpenedFile implements FileHandle
         }
 
         $this->offset = $newOffset;
+        $this->eof = false;
 
         return true;
     }
